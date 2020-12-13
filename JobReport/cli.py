@@ -1,13 +1,13 @@
-"""Console script for job_report."""
+"""Console script for JobReport."""
 import sys
 import click
 
 
 @click.command()
 def main(args=None):
-    """Console script for job_report."""
+    """Console script for JobReport."""
     click.echo("Replace this message by putting your code into "
-               "job_report.cli.main")
+               "JobReport.cli.main")
     click.echo("See click documentation at https://click.palletsprojects.com/")
     return 0
 
