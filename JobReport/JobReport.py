@@ -1,30 +1,83 @@
 import os
 import json
 import logging
-import pandas as pd
-import numpy as np
+import pkgutil
+import argparse
+import pkg_resources
+from tqdm import tqdm
 from time import sleep
-from dotenv import load_dotenv
 import robin_stocks as r
-from bs4 import BeautifulSoup
-from tqdm.notebook import tqdm
+from typing import List, Dict
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
 
 class JobReport:
-    
-    def __init__(self):
+
+    def __init__(self, container_env:bool=False):
+        """
+        Log into robinhood and load the company names map
+
+        Args:
+            container_env (bool): if launching with docker this will be overriden to true
+        """
+        # Login to Robinhood
+        self.__logIn()
+        
+        # Class Attributes
+        self.container_env = container_env
+        self.cmp_names = json.loads(pkgutil.get_data('JobReport', 'config/names.json').decode("utf-8"))
+        
+        # Setup Selenium
+        self.__setupDriver()
+
+
+    def __setupDriver(self) -> None:
+        """
+        Setup the Selenium webdriver.
+        Based on https://nander.cc/using-selenium-within-a-docker-container
+        """
+
+        if self.container_env:
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_prefs = {}
+            chrome_options.experimental_options["prefs"] = chrome_prefs
+            chrome_prefs["profile.default_content_settings"] = {"images": 2}
+        else:
+            chrome_options = webdriver.ChromeOptions()
+            chrome_options.add_argument("--start-maximized")
+        
+        driver_path = pkg_resources.resource_filename("JobReport", "drivers/")
+        
+        if os.name == 'nt':
+            driver_path = os.path.join(driver_path, 'chromedriver.exe')
+            self.driver = webdriver.Chrome(executable_path=driver_path, options=chrome_options)
+        else:
+            # Assumes Linux
+            self.driver = webdriver.Chrome(resource_path=driver_path)
+
+
+    def __logIn(self) -> None:
+        """ Log into all connections """
         load_dotenv()
-        login = r.login(
+        _ = r.login(
             username=os.getenv('robinhood_username'),
             password=os.getenv('robinhood_password')
         )
-        f = open('names.json', 'r+')
-        self.cmp_names = json.load(f)
+
+
+    def tearDown(self) -> None:
+        """ Sign out of and end all sessions """
+        r.authentication.logout()
+        self.driver.quit()
 
         
-    def getCompanyJobCount(self, company:str):
+    def getCompanyJobCount(self, company:str) -> int:
         """
         Collect number of job listings for a company on Indeed.com
 
@@ -35,28 +88,23 @@ class JobReport:
             jobcnt (int): the number of job listings
         """
         company = company.replace(' ', '-')
-        options = webdriver.ChromeOptions()
-        options.add_argument("--start-maximized")
-        driver = webdriver.Chrome(options=options)# driver.minimize_window()
 
         try:
-            driver.get(
+            self.driver.get(
                     f"https://www.indeed.com/cmp/{company}/jobs?&l=United+States" # TODO: confirm &l works
             )
-            jobcnt_elm = driver.find_element_by_class_name('cmp-JobListJobCount-jobCount')
+            jobcnt_elm = self.driver.find_element_by_class_name('cmp-JobListJobCount-jobCount')
             jobcnt = int(jobcnt_elm.text.split()[0].replace(',',''))
         except:
             logging.warning(f'getCount: Company "{company}" did not return a valid page. May need to add to or update names.json...')
             jobcnt = -1
-        finally:
-            driver.close()
 
         return jobcnt
     
     
-    def getCompanyHoldingsNames(self):
+    def getCompanyHoldingsNames(self) -> List[str]:
         """
-        Returns the names of companies in holdings
+        Returns the names of companies in holdings (List[str])
         """
         holdings = r.account.build_holdings()
         cmp_holdings_names = []
@@ -74,9 +122,9 @@ class JobReport:
         return cmp_holdings_names
     
     
-    def getHoldingsJobCounts(self):
+    def getHoldingsJobCounts(self) -> Dict[str, int]:
         """
-        Returns the job counts for each holding
+        Returns the job counts for each holding (Dict[str, int])
         """
         logging.info('Getting Holdings Job Counts...')
         pbar = tqdm(total=len(names:=self.getCompanyHoldingsNames()))
@@ -86,6 +134,26 @@ class JobReport:
             pbar.set_description(name)
             holding_counts.update({name:self.getCompanyJobCount(name)})
             pbar.update(1)
-            
+        pbar.close()
         return holding_counts
     
+
+if __name__=='__main__':
+    parser = argparse.ArgumentParser(
+        prog='JobReport',
+        description='Intialize a JobReport',
+        )
+
+    parser.add_argument(
+        '-c',
+        '--container_env', 
+        required=False, 
+        help='this should be set if launching with Docker',
+        action='store_true'
+        )
+
+    args = parser.parse_args()
+    jr = JobReport(container_env=args.container_env)
+    print(f'Holdings Job Counts:\n{jr.getHoldingsJobCounts()}')
+    print("Tearing down...")
+    jr.tearDown()

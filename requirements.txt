@@ -12,3 +12,4 @@ selenium
 python-dotenv
 robin_stocks
 tqdm
+importlib_resources
