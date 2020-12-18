@@ -3,11 +3,11 @@ Job Report
 ==========
 
 
-.. image:: https://img.shields.io/pypi/v/job_report.svg
-        :target: https://pypi.python.org/pypi/job_report
+.. image:: https://img.shields.io/pypi/v/JobReport.svg
+        :target: https://pypi.python.org/pypi/JobReport
 
-.. image:: https://img.shields.io/travis/rjdoubleu/job_report.svg
-        :target: https://travis-ci.com/rjdoubleu/job_report
+.. image:: https://img.shields.io/travis/rjdoubleu/JobReport.svg
+        :target: https://travis-ci.com/rjdoubleu/JobReport
 
 .. image:: https://readthedocs.org/projects/job-report/badge/?version=latest
         :target: https://job-report.readthedocs.io/en/latest/?badge=latest
