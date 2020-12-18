@@ -15,11 +15,6 @@ git clone https://github.com/rjdoubleu/JobReport.git
 pip install ./JobReport
 ```
 
-
-Requirements
---------
-Must add a copy of chromedriver to the JobReport/drivers/ directory
-
 Usage
 --------
 ### CLI
@@ -30,20 +25,20 @@ python Jobreport/JobReport.py
 ### Python
 ```
 from JobReport import JobReport
-jr = JobReport()
+jr = JobReport.JobReport()
 jr.getHoldingsJobCounts()
 ```
 
 ### Docker (coming soon...)
 ```
-cd JobReport/dockerfiles/
-docker build -t jobreport:latest .
+cd JobReport
+docker build -t jobreport:latest -f dockerfiles/Dockerfile .
 docker run jobreport:latest
 ```
 
 ### Docker-compose (coming soon...)
 ```
-cd JobReport/dockerfiles/
+cd JobReport
 docker-compose up jobreport
 ```
 
@@ -51,14 +46,14 @@ Tests (coming soon...)
 -------
 ### Docker (coming soon...)
 ```
-cd JobReport/dockerfiles/
-docker build -f Dockerfile.tests -t tests:latest .
+cd JobReport
+docker build -f dockerfiles/Dockerfile.tests -t tests:latest .
 docker run tests:latest
 ```
 
 ### Docker-compose (coming soon...)
 ```
-cd JobReport/dockerfiles/
+cd JobReport
 docker-compose up tests
 ```
 

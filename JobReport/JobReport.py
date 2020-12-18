@@ -1,15 +1,21 @@
 import os
 import json
+import boto3
 import logging
 import pkgutil
 import argparse
-import pkg_resources
+import pandas as pd
 from tqdm import tqdm
 from time import sleep
 import robin_stocks as r
+from getpass import getpass
 from typing import List, Dict
+from datetime import datetime
 from dotenv import load_dotenv
 from selenium import webdriver
+import chromedriver_autoinstaller
+from dynamodb_json import json_util
+from botocore.exceptions import ClientError
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import NoSuchElementException
@@ -23,15 +29,29 @@ class JobReport:
         Args:
             container_env (bool): if launching with docker this will be overriden to true
         """
+        # Setup logging
+        logging.basicConfig(filename='JobReport.log', filemode='w', level=logging.INFO)
+
         # Login to Robinhood
         self.__logIn()
         
         # Class Attributes
         self.container_env = container_env
-        self.cmp_names = json.loads(pkgutil.get_data('JobReport', 'config/names.json').decode("utf-8"))
+
+        if self.container_env:
+            logging.info('Running in container mode')
+        else:
+            logging.info('Running in local mode')
+
+        self.cmp_names = json.loads(
+            pkgutil.get_data('JobReport', 'config/names.json').decode("utf-8")
+            )
         
         # Setup Selenium
         self.__setupDriver()
+
+        #self.dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
+        #self.table = self.dynamodb.Table('JobReport')
 
 
     def __setupDriver(self) -> None:
@@ -39,6 +59,9 @@ class JobReport:
         Setup the Selenium webdriver.
         Based on https://nander.cc/using-selenium-within-a-docker-container
         """
+
+        # Install chromedriver if not already installed
+        chromedriver_autoinstaller.install()
 
         if self.container_env:
             chrome_options = Options()
@@ -52,29 +75,41 @@ class JobReport:
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_argument("--start-maximized")
         
-        driver_path = pkg_resources.resource_filename("JobReport", "drivers/")
-        
-        if os.name == 'nt':
-            driver_path = os.path.join(driver_path, 'chromedriver.exe')
-            self.driver = webdriver.Chrome(executable_path=driver_path, options=chrome_options)
-        else:
-            # Assumes Linux
-            self.driver = webdriver.Chrome(resource_path=driver_path)
+        self.driver = webdriver.Chrome(options=chrome_options)
 
 
     def __logIn(self) -> None:
         """ Log into all connections """
+        
         load_dotenv()
+        overwrite = False
+
+        if not (username := os.getenv('robinhood_username')):
+            username = input('Enter your Robinhood username (email): ')
+            overwrite = True
+
+        if not (password := os.getenv('robinhood_password')):
+            getpass(prompt='Enter your Robinhood password: ')
+            overwrite = True
+
         _ = r.login(
-            username=os.getenv('robinhood_username'),
-            password=os.getenv('robinhood_password')
+            username=username,
+            password=password
         )
+
+        #logging.info('login successful')
+
+        if overwrite:
+            f = open('JobReport/.env', 'w')
+            f.write(f'robinhood_username={username}\nrobinhood_password={password}')
+            f.close()
 
 
     def tearDown(self) -> None:
         """ Sign out of and end all sessions """
         r.authentication.logout()
         self.driver.quit()
+        logging.info('Tear down complete.')
 
         
     def getCompanyJobCount(self, company:str) -> int:
@@ -136,6 +171,31 @@ class JobReport:
             pbar.update(1)
         pbar.close()
         return holding_counts
+
+    
+    def dynamoPush(self, item:Dict[str, int]) -> None:
+        """
+        Upload data to AWS DynamoDB.
+        NOTE: Although current items are columnar, future items will 
+        include job descriptions which is why we require NoSQL storage.
+
+        Args:
+            record (Dict[str, int]): the row you want to upload
+        """
+        item.update({'date': datetime.datetime.now().date()})
+        response = self.table.put_item(Item=item)
+
+
+    def dynamoPullAll(self) -> pd.DataFrame:
+        try:
+            response = self.table.scan()
+        except ClientError as e:
+            logging.error(e.response['Error']['Message'])
+        else:
+            return pd.DataFrame(json_util.loads(response))
+
+    def displayDash(self):
+        ...
     
 
 if __name__=='__main__':
@@ -154,6 +214,5 @@ if __name__=='__main__':
 
     args = parser.parse_args()
     jr = JobReport(container_env=args.container_env)
-    print(f'Holdings Job Counts:\n{jr.getHoldingsJobCounts()}')
-    print("Tearing down...")
+    logging.info(f'Holdings Job Counts:\n{json.dumps(jr.getHoldingsJobCounts(), indent=1)}')
     jr.tearDown()

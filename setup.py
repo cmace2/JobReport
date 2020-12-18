@@ -1,16 +1,26 @@
 #!/usr/bin/env python
 
 """The setup script."""
-
 from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
+with open('README.md') as readme_file:
     readme = readme_file.read()
 
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['Click>=7.0', ]
+requirements = [
+    'pip',
+    'selenium',
+    'python-dotenv',
+    'robin_stocks',
+    'tqdm',
+    'importlib_resources',
+    'chromedriver-autoinstaller',
+    'boto3',
+    'dynamodb_json',
+    'pandas'
+    ]
 
 setup_requirements = [ ]
 
