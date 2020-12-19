@@ -30,7 +30,11 @@ class JobReport:
             container_env (bool): if launching with docker this will be overriden to true
         """
         # Setup logging
-        logging.basicConfig(filename='JobReport.log', filemode='w', level=logging.INFO)
+        logging.basicConfig(filename='JobReport.log', filemode='w', level=logging.DEBUG)
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        logging.getLogger('').addHandler(console)
+
 
         # Login to Robinhood
         self.__logIn()
@@ -187,6 +191,9 @@ class JobReport:
 
 
     def dynamoPullAll(self) -> pd.DataFrame:
+        """
+        Returns a Pandas DataFrame of all JobReport data.
+        """
         try:
             response = self.table.scan()
         except ClientError as e:
@@ -211,6 +218,13 @@ if __name__=='__main__':
         help='this should be set if launching with Docker',
         action='store_true'
         )
+
+    # parser.add_argument(
+    #     '-mfa',
+    #     '--multi_factor_authentication',
+    #     required=False,
+    #     help='if deploying to the cloud, it is recommended you setup MFA on your Robinhood account'
+    # )
 
     args = parser.parse_args()
     jr = JobReport(container_env=args.container_env)
