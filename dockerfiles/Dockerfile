@@ -20,10 +20,10 @@ ADD requirements.txt .
 RUN pip install -r requirements.txt
 
 # copy the package
-COPY . .
+COPY JobReport/ JobReport/
 
 # expose the dashboard port
-EXPOSE 8050
+EXPOSE 5050
 
 # change workind directory
 WORKDIR /JobReport
