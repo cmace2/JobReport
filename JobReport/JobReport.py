@@ -1,10 +1,10 @@
 import os
 import json
-import boto3
+#import boto3
 import logging
 import pkgutil
 import argparse
-import pandas as pd
+#import pandas as pd
 from tqdm import tqdm
 from time import sleep
 import robin_stocks as r
@@ -180,32 +180,32 @@ class JobReport:
         return holding_counts
 
     
-    def dynamoPush(self, item:Dict[str, int]) -> None:
-        """
-        Upload data to AWS DynamoDB.
-        NOTE: Although current items are columnar, future items will 
-        include job descriptions which is why we require NoSQL storage.
+    # def dynamoPush(self, item:Dict[str, int]) -> None:
+    #     """
+    #     Upload data to AWS DynamoDB.
+    #     NOTE: Although current items are columnar, future items will 
+    #     include job descriptions which is why we require NoSQL storage.
 
-        Args:
-            record (Dict[str, int]): the row you want to upload
-        """
-        item.update({'date': datetime.datetime.now().date()})
-        response = self.table.put_item(Item=item)
+    #     Args:
+    #         record (Dict[str, int]): the row you want to upload
+    #     """
+    #     item.update({'date': datetime.datetime.now().date()})
+    #     response = self.table.put_item(Item=item)
 
 
-    def dynamoPullAll(self) -> pd.DataFrame:
-        """
-        Returns a Pandas DataFrame of all JobReport data.
-        """
-        try:
-            response = self.table.scan()
-        except ClientError as e:
-            logging.error(e.response['Error']['Message'])
-        else:
-            return pd.DataFrame(json_util.loads(response))
+    # def dynamoPullAll(self) -> pd.DataFrame:
+    #     """
+    #     Returns a Pandas DataFrame of all JobReport data.
+    #     """
+    #     try:
+    #         response = self.table.scan()
+    #     except ClientError as e:
+    #         logging.error(e.response['Error']['Message'])
+    #     else:
+    #         return pd.DataFrame(json_util.loads(response))
 
-    def displayDash(self):
-        ...
+    # def displayDash(self):
+    #     ...
     
 
 if __name__=='__main__':
