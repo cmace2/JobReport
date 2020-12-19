@@ -1,1 +1,1 @@
-"""Unit test package for job_report."""
+"""Unit test package for JobReport."""
