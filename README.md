@@ -27,6 +27,7 @@ python Jobreport/JobReport.py
 from JobReport.JobReport import JobReport
 jr = JobReport()
 jr.getHoldingsJobCounts()
+jr.close()
 ```
 
 ### Docker

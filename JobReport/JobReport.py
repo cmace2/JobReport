@@ -1,10 +1,10 @@
 import os
 import json
-import boto3
+#import boto3
 import logging
 import pkgutil
 import argparse
-import pandas as pd
+#import pandas as pd
 from tqdm import tqdm
 from time import sleep
 import robin_stocks as r
@@ -29,8 +29,14 @@ class JobReport:
         Args:
             container_env (bool): if launching with docker this will be overriden to true
         """
+        # Dude where's my package
+        self.__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+
         # Setup logging
-        logging.basicConfig(filename='JobReport.log', filemode='w', level=logging.DEBUG)
+        logging.basicConfig(
+            filename=os.path.join(self.__location__, 'JobReport.log'), 
+            filemode='w', level=logging.DEBUG
+            )
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
         logging.getLogger('').addHandler(console)
@@ -88,12 +94,12 @@ class JobReport:
         load_dotenv()
         overwrite = False
 
-        if not (username := os.getenv('robinhood_username')):
+        if (username := os.getenv('robinhood_username')) == 'None':
             username = input('Enter your Robinhood username (email): ')
             overwrite = True
 
-        if not (password := os.getenv('robinhood_password')):
-            getpass(prompt='Enter your Robinhood password: ')
+        if (password := os.getenv('robinhood_password')) == 'None':
+            password = getpass(prompt='Enter your Robinhood password: ')
             overwrite = True
 
         _ = r.login(
@@ -101,19 +107,16 @@ class JobReport:
             password=password
         )
 
-        #logging.info('login successful')
-
         if overwrite:
-            f = open('JobReport/.env', 'w')
+            f = open(os.path.join(self.__location__, '.env'), 'w')
             f.write(f'robinhood_username={username}\nrobinhood_password={password}')
             f.close()
 
 
-    def tearDown(self) -> None:
+    def close(self) -> None:
         """ Sign out of and end all sessions """
         r.authentication.logout()
         self.driver.quit()
-        logging.info('Tear down complete.')
 
         
     def getCompanyJobCount(self, company:str) -> int:
@@ -177,32 +180,32 @@ class JobReport:
         return holding_counts
 
     
-    def dynamoPush(self, item:Dict[str, int]) -> None:
-        """
-        Upload data to AWS DynamoDB.
-        NOTE: Although current items are columnar, future items will 
-        include job descriptions which is why we require NoSQL storage.
+    # def dynamoPush(self, item:Dict[str, int]) -> None:
+    #     """
+    #     Upload data to AWS DynamoDB.
+    #     NOTE: Although current items are columnar, future items will 
+    #     include job descriptions which is why we require NoSQL storage.
 
-        Args:
-            record (Dict[str, int]): the row you want to upload
-        """
-        item.update({'date': datetime.datetime.now().date()})
-        response = self.table.put_item(Item=item)
+    #     Args:
+    #         record (Dict[str, int]): the row you want to upload
+    #     """
+    #     item.update({'date': datetime.datetime.now().date()})
+    #     response = self.table.put_item(Item=item)
 
 
-    def dynamoPullAll(self) -> pd.DataFrame:
-        """
-        Returns a Pandas DataFrame of all JobReport data.
-        """
-        try:
-            response = self.table.scan()
-        except ClientError as e:
-            logging.error(e.response['Error']['Message'])
-        else:
-            return pd.DataFrame(json_util.loads(response))
+    # def dynamoPullAll(self) -> pd.DataFrame:
+    #     """
+    #     Returns a Pandas DataFrame of all JobReport data.
+    #     """
+    #     try:
+    #         response = self.table.scan()
+    #     except ClientError as e:
+    #         logging.error(e.response['Error']['Message'])
+    #     else:
+    #         return pd.DataFrame(json_util.loads(response))
 
-    def displayDash(self):
-        ...
+    # def displayDash(self):
+    #     ...
     
 
 if __name__=='__main__':
@@ -229,4 +232,4 @@ if __name__=='__main__':
     args = parser.parse_args()
     jr = JobReport(container_env=args.container_env)
     logging.info(f'Holdings Job Counts:\n{json.dumps(jr.getHoldingsJobCounts(), indent=1)}')
-    jr.tearDown()
+    jr.close()
