@@ -34,7 +34,7 @@ class JobReport:
 
         # Setup logging
         logging.basicConfig(
-            filename=os.path.join(self.__location__, 'JobReport.log'), 
+            filename=os.path.join(self.__location__, 'JobReport.log'),
             filemode='w', level=logging.DEBUG
             )
         console = logging.StreamHandler()
@@ -44,7 +44,7 @@ class JobReport:
 
         # Login to Robinhood
         self.__logIn()
-        
+
         # Class Attributes
         self.container_env = container_env
 
@@ -56,7 +56,7 @@ class JobReport:
         self.cmp_names = json.loads(
             pkgutil.get_data('JobReport', 'config/names.json').decode("utf-8")
             )
-        
+
         # Setup Selenium
         self.__setupDriver()
 
@@ -84,33 +84,44 @@ class JobReport:
         else:
             chrome_options = webdriver.ChromeOptions()
             chrome_options.add_argument("--start-maximized")
-        
+
         self.driver = webdriver.Chrome(options=chrome_options)
 
 
     def __logIn(self) -> None:
         """ Log into all connections """
-        
+
         load_dotenv()
         overwrite = False
 
-        if (username := os.getenv('robinhood_username')) == 'None':
+        if (username := os.getenv('robinhood_username')) in ['None', None, '']:
+            try:
+                r.logout()
+            except:
+                pass
             username = input('Enter your Robinhood username (email): ')
             overwrite = True
 
-        if (password := os.getenv('robinhood_password')) == 'None':
+        if (password := os.getenv('robinhood_password')) in ['None', None, '']:
+            try:
+                r.logout()
+            except:
+                pass
             password = getpass(prompt='Enter your Robinhood password: ')
             overwrite = True
-
-        _ = r.login(
-            username=username,
-            password=password
-        )
-
-        if overwrite:
-            f = open(os.path.join(self.__location__, '.env'), 'w')
-            f.write(f'robinhood_username={username}\nrobinhood_password={password}')
-            f.close()
+        try:
+            _ = r.login(
+                username=username,
+                password=password
+            )
+        except:
+            logging.info("Incorrect credentials, try again.")
+            self.__logIn()
+        else:
+            if overwrite:
+                f = open(os.path.join(self.__location__, '.env'), 'w')
+                f.write(f'robinhood_username={username}\nrobinhood_password={password}')
+                f.close()
 
 
     def close(self) -> None:
@@ -118,7 +129,7 @@ class JobReport:
         r.authentication.logout()
         self.driver.quit()
 
-        
+
     def getCompanyJobCount(self, company:str) -> int:
         """
         Collect number of job listings for a company on Indeed.com
@@ -142,8 +153,8 @@ class JobReport:
             jobcnt = -1
 
         return jobcnt
-    
-    
+
+
     def getCompanyHoldingsNames(self) -> List[str]:
         """
         Returns the names of companies in holdings (List[str])
@@ -160,17 +171,17 @@ class JobReport:
                 cmp_holdings_names.append(self.cmp_names[cmp_nm])
             else:
                 cmp_holdings_names.append(cmp_nm)
-        
+
         return cmp_holdings_names
-    
-    
+
+
     def getHoldingsJobCounts(self) -> Dict[str, int]:
         """
         Returns the job counts for each holding (Dict[str, int])
         """
         logging.info('Getting Holdings Job Counts...')
         pbar = tqdm(total=len(names:=self.getCompanyHoldingsNames()))
-        
+
         holding_counts = {}
         for name in names:
             pbar.set_description(name)
@@ -179,11 +190,11 @@ class JobReport:
         pbar.close()
         return holding_counts
 
-    
+
     # def dynamoPush(self, item:Dict[str, int]) -> None:
     #     """
     #     Upload data to AWS DynamoDB.
-    #     NOTE: Although current items are columnar, future items will 
+    #     NOTE: Although current items are columnar, future items will
     #     include job descriptions which is why we require NoSQL storage.
 
     #     Args:
@@ -206,7 +217,7 @@ class JobReport:
 
     # def displayDash(self):
     #     ...
-    
+
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(
@@ -216,8 +227,8 @@ if __name__=='__main__':
 
     parser.add_argument(
         '-c',
-        '--container_env', 
-        required=False, 
+        '--container_env',
+        required=False,
         help='this should be set if launching with Docker',
         action='store_true'
         )
